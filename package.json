@@ -4,13 +4,14 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev:server": "cross-env NODE_ENV=development tsx server/index.ts",
-    "dev:client": "vite",
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "build:client": "vite build",
-    "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build": "npm run build:client && npm run build:server",
-    "start": "cross-env NODE_ENV=production node dist/server/index.js",
+    
+  "dev:server": "cross-env NODE_ENV=development tsx server/index.ts",
+  "dev:client": "vite",
+  "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+  "build:client": "vite build",
+  "build:server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+  "build": "npm run build:client && npm run build:server",
+  "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "migrate:generate": "npx drizzle-kit generate:migration --config drizzle.config.ts",
     "migrate:push": "npx drizzle-kit push --config drizzle.config.ts",
@@ -84,6 +85,7 @@
     "zod-validation-error": "^3.4.0",
     "dotenv": "^16.1.4"
   },
+  
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
@@ -110,17 +112,5 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
-  },
-  "description": "منصة إسلامية للتوجيه النفسي والعلاج بالرقية الشرعية توفر إرشادات نفسية ودينية مخصصة بناءً على حالة المستخدم، مع الحفاظ على خصوصيته التامة (لا يتطلب تسجيل دخول).",
-  "main": "postcss.config.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hashiim187/IslamBotHealer.git"
-  },
-  "keywords": [],
-  "author": "",
-  "bugs": {
-    "url": "https://github.com/hashiim187/IslamBotHealer/issues"
-  },
-  "homepage": "https://github.com/hashiim187/IslamBotHealer#readme"
+  }
 }
