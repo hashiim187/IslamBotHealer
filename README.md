@@ -6,7 +6,7 @@
 ## التقنيات المستخدمة
 - **Frontend**: React + TypeScript + Tailwind CSS + Shadcn UI
 - **Backend**: Express.js + TypeScript
-- **AI**: Google Gemini AI (gemini-2.5-flash) - مجاني
+- **AI**: Google Gemini AI (gemini-2.5-flash) 
 - **التصميم**: نظام تصميم إسلامي بألوان دافئة وخطوط عربية (Cairo, Amiri)
 
 ## الميزات الرئيسية
@@ -52,7 +52,7 @@ shared/
 
 ## المتغيرات البيئية
 - `GEMINI_API_KEY`: مفتاح Google Gemini AI (مجاني من https://aistudio.google.com/app/apikey)
-- `SESSION_SECRET`: سر الجلسة (تم إنشاؤه تلقائياً)
+- `SESSION_SECRET`: سر الجلسة (تم إنشاؤه تلقائيًا)
 
 ## التشغيل
 ```bash
@@ -66,6 +66,6 @@ npm run dev
 - responsive design
 
 ## ملاحظات
-- التطبيق لا يحفظ أي بيانات (كل شيء في الذاكرة فقط)
-- مناسب للعرض على المستثمرين
-- يستخدم Gemini AI المجاني (1500 طلب/يوم)
+ - التطبيق لا يحفظ أي بيانات (كل شيء في الذاكرة فقط)
+ - مناسب للعرض على المستثمرين
+ - يستخدم Gemini AI المجاني (1500 طلب/يوم)

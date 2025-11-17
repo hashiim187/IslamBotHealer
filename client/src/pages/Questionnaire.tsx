@@ -115,7 +115,7 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       <div className="w-full max-w-2xl space-y-8">
         <div className="space-y-3">
-          <div className="flex justify-between items-center text-sm text-muted-foreground">
+          <div className="flex justify-between items-center text-sm text-muted-foreground flex-row-reverse">
             <span>السؤال {currentStep + 1} من {questions.length}</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -124,7 +124,7 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
 
         <Card className="p-8 space-y-8">
           <div className="space-y-6">
-            <h2 className="text-2xl md:text-3xl font-medium text-foreground leading-relaxed">
+            <h2 className="text-2xl md:text-3xl font-medium text-foreground leading-relaxed text-right">
               {currentQuestion.question}
             </h2>
 
@@ -135,18 +135,18 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
                 className="space-y-4"
               >
                 {currentQuestion.options.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-3 space-x-reverse">
+                  <div key={option.value} className="flex items-center justify-end gap-3">
+                    <Label
+                      htmlFor={option.value}
+                      className="text-lg cursor-pointer flex-1 py-3 text-right"
+                    >
+                      {option.label}
+                    </Label>
                     <RadioGroupItem
                       value={option.value}
                       id={option.value}
                       data-testid={`radio-${currentQuestion.id}-${option.value}`}
                     />
-                    <Label
-                      htmlFor={option.value}
-                      className="text-lg cursor-pointer flex-1 py-3"
-                    >
-                      {option.label}
-                    </Label>
                   </div>
                 ))}
               </RadioGroup>
@@ -157,7 +157,8 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
                 value={answers[currentQuestion.id] || ""}
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="اكتب هنا..."
-                className="min-h-32 text-lg resize-none"
+                className="min-h-32 text-lg resize-none text-right"
+                dir="rtl"
                 data-testid="textarea-specificConcerns"
               />
             )}
@@ -165,24 +166,24 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
 
           <div className="flex justify-between gap-4">
             <Button
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentStep === 0}
-              className="gap-2"
-              data-testid="button-previous"
+              onClick={handleNext}
+              disabled={!canProceed}
+              className="gap-2 flex items-center"
+              data-testid="button-next"
             >
-              <ChevronRight className="w-4 h-4" />
-              السابق
+              <ChevronLeft className="w-4 h-4 ml-2" />
+              {currentStep === questions.length - 1 ? "إنهاء" : "التالي"}
             </Button>
 
             <Button
-              onClick={handleNext}
-              disabled={!canProceed}
-              className="gap-2"
-              data-testid="button-next"
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentStep === 0}
+              className="gap-2 flex items-center"
+              data-testid="button-previous"
             >
-              {currentStep === questions.length - 1 ? "إنهاء" : "التالي"}
-              <ChevronLeft className="w-4 h-4" />
+              السابق
+              <ChevronRight className="w-4 h-4 mr-2" />
             </Button>
           </div>
         </Card>

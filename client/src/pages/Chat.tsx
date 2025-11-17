@@ -43,18 +43,14 @@ export default function Chat({ questionnaireData }: ChatProps) {
 
   const chatMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      const newUserMessage: ChatMessage = {
-        role: "user",
-        content: userMessage,
-        timestamp: Date.now(),
-      };
-
       const response = await apiRequest("POST", "/api/chat", {
-        messages: [...messages, newUserMessage],
+        messages: [...messages, { role: "user", content: userMessage, timestamp: Date.now() }],
         questionnaireData,
       });
 
-      return { newUserMessage, response };
+      // Parse the response as JSON
+      const jsonData = await response.json();
+      return { response: jsonData };
     },
     onSuccess: (data) => {
       const assistantMessage: ChatMessage = {
@@ -62,9 +58,9 @@ export default function Chat({ questionnaireData }: ChatProps) {
         content: data.response.message,
         timestamp: Date.now(),
       };
-      setMessages((prev) => [...prev, data.newUserMessage, assistantMessage]);
-      // Only clear input after successful send
-      setInput("");
+      console.log("Chat response received:", data.response);
+      setMessages((prev) => [...prev, assistantMessage]);
+      // Input already cleared in handleSend
     },
     onError: (error: any, variables: string) => {
       let errorText = "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.";
@@ -77,21 +73,30 @@ export default function Chat({ questionnaireData }: ChatProps) {
         errorText = error.response.data.userMessage;
       }
       
+      console.error("Chat mutation error:", error);
+      
       // Show error toast but DON'T clear input - let user retry
       toast({
         title: "خطأ",
         description: errorText,
         variant: "destructive",
       });
-      
-      console.error("Chat error:", error);
     },
   });
 
   const handleSend = () => {
     if (input.trim() && !chatMutation.isPending && serviceAvailable) {
+      // Add user message immediately to the chat
+      const userMessage: ChatMessage = {
+        role: "user",
+        content: input,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      // Clear input immediately
+      setInput("");
+      // Then send to server
       chatMutation.mutate(input);
-      // Input will be cleared in onSuccess, not here
     }
   };
 
@@ -105,15 +110,22 @@ export default function Chat({ questionnaireData }: ChatProps) {
   };
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    // Delay scroll slightly to ensure DOM has updated
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   return (
     <div className="h-screen flex flex-col lg:flex-row bg-background">
       {/* Sidebar */}
-      <aside className="lg:w-80 border-b lg:border-b-0 lg:border-l border-border bg-card p-6 space-y-6">
+      <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-l border-border bg-card p-4 lg:p-6 space-y-6 max-h-[40vh] lg:max-h-screen overflow-y-auto">
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -162,8 +174,8 @@ export default function Chat({ questionnaireData }: ChatProps) {
       </aside>
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col">
-        <ScrollArea className="flex-1 p-6" ref={scrollRef as any}>
+      <main className="flex-1 flex flex-col min-h-[60vh] lg:min-h-screen">
+        <div className="flex-1 overflow-y-auto p-6" ref={scrollRef as any}>
           <div className="max-w-4xl mx-auto space-y-6">
             {messages.map((message, index) => (
               <MessageBubble key={index} message={message} />
@@ -180,10 +192,10 @@ export default function Chat({ questionnaireData }: ChatProps) {
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Input Area */}
-        <div className="border-t border-border bg-card p-6">
+        <div className="border-t border-border bg-card p-4 lg:p-6 mt-auto">
           <div className="max-w-4xl mx-auto">
             {!serviceAvailable && (
               <Card className="mb-4 p-4 bg-destructive/10 border-destructive/50">
@@ -227,8 +239,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end" data-testid={`message-user-${message.timestamp}`}>
-        <div className="bg-primary text-primary-foreground p-4 rounded-2xl rounded-tl-sm max-w-2xl">
+      <div className="flex justify-start message-animate" data-testid={`message-user-${message.timestamp}`}>
+        <div className="bg-primary text-primary-foreground p-4 rounded-2xl rounded-bl-sm max-w-2xl">
           <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
         </div>
       </div>
@@ -236,24 +248,24 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <div className="flex gap-3 items-start" data-testid={`message-assistant-${message.timestamp}`}>
-      <div className="p-2 rounded-full bg-primary/10 flex-shrink-0">
-        <Heart className="w-4 h-4 text-primary" />
-      </div>
-      <div className="flex-1 space-y-3">
+    <div className="flex gap-3 items-start justify-end message-animate" data-testid={`message-assistant-${message.timestamp}`}>
+      <div className="flex-1 space-y-3 max-w-2xl">
         {isQuranVerse ? (
-          <Card className="p-6 bg-accent/30 border-r-4 border-primary">
+          <Card className="p-6 bg-accent/30 border-l-4 border-primary ml-auto">
             <p className="text-lg md:text-xl leading-loose font-serif text-foreground whitespace-pre-wrap">
               {message.content}
             </p>
           </Card>
         ) : (
-          <div className="bg-card border border-card-border p-4 rounded-2xl rounded-tr-sm max-w-2xl">
+          <div className="bg-card border border-card-border p-4 rounded-2xl rounded-tr-sm">
             <p className="text-base leading-relaxed whitespace-pre-wrap text-card-foreground">
               {message.content}
             </p>
           </div>
         )}
+      </div>
+      <div className="p-2 rounded-full bg-primary/10 flex-shrink-0">
+        <Heart className="w-4 h-4 text-primary" />
       </div>
     </div>
   );
