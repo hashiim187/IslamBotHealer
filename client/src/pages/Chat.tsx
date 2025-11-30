@@ -2,43 +2,44 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Send, Loader2, BookOpen, Heart, Sparkles } from "lucide-react";
-import type { QuestionnaireResponse, ChatMessage } from "@shared/schema";
+import { Send, Loader2, LogOut, Heart } from "lucide-react";
+import type { QuestionnaireResponse, ChatMessage, TherapistType } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { therapistThemes, type TherapistTheme } from "@/data/therapistThemes";
+import { cn } from "@/lib/utils";
 
 interface ChatProps {
   questionnaireData: QuestionnaireResponse;
+  therapistType: TherapistType;
+  onEndSession?: () => void;
 }
 
-export default function Chat({ questionnaireData }: ChatProps) {
+export default function Chat({ questionnaireData, therapistType, onEndSession }: ChatProps) {
   const { toast } = useToast();
+  const theme = therapistThemes[therapistType];
+  const TherapistIcon = theme.icon;
+
   const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: "السلام عليكم ورحمة الله وبركاته\n\nأهلاً بك، أنا هنا لمساعدتك ودعمك في رحلتك النفسية والروحية. تذكر أن الله معك دائماً، وأن كل صعوبة تمر بها هي اختبار وفرصة للنمو والتقرب من الله.\n\nكيف يمكنني مساعدتك اليوم؟",
-      timestamp: Date.now(),
-    },
+    { role: "assistant", content: theme.greeting, timestamp: Date.now() },
   ]);
   const [input, setInput] = useState("");
   const [serviceAvailable, setServiceAvailable] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check service health on mount
+  useEffect(() => {
+    setMessages([{ role: "assistant", content: theme.greeting, timestamp: Date.now() }]);
+  }, [therapistType, theme.greeting]);
+
   useEffect(() => {
     fetch("/api/health")
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === "missing_api_key") {
-          setServiceAvailable(false);
-        }
+        if (data.status === "missing_api_key") setServiceAvailable(false);
       })
-      .catch(() => {
-        // If health check fails, assume service is available but may have other issues
-      });
+      .catch(() => {});
   }, []);
 
   const chatMutation = useMutation({
@@ -46,226 +47,210 @@ export default function Chat({ questionnaireData }: ChatProps) {
       const response = await apiRequest("POST", "/api/chat", {
         messages: [...messages, { role: "user", content: userMessage, timestamp: Date.now() }],
         questionnaireData,
+        therapistType,
       });
-
-      // Parse the response as JSON
-      const jsonData = await response.json();
-      return { response: jsonData };
+      return response.json();
     },
     onSuccess: (data) => {
-      const assistantMessage: ChatMessage = {
-        role: "assistant",
-        content: data.response.message,
-        timestamp: Date.now(),
-      };
-      console.log("Chat response received:", data.response);
+      const assistantMessage: ChatMessage = { role: "assistant", content: data.message, timestamp: Date.now() };
       setMessages((prev) => [...prev, assistantMessage]);
-      // Input already cleared in handleSend
     },
-    onError: (error: any, variables: string) => {
+    onError: (error: any) => {
       let errorText = "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.";
-      
-      // Check if service became unavailable
       if (error?.response?.status === 503) {
         setServiceAvailable(false);
-        errorText = "الخدمة غير متاحة حالياً. مفتاح الـ API غير مكوّن. يرجى التواصل مع مدير الموقع.";
+        errorText = "الخدمة غير متاحة حالياً. مفتاح الـ API غير مكوّن.";
       } else if (error?.response?.data?.userMessage) {
         errorText = error.response.data.userMessage;
       }
-      
-      console.error("Chat mutation error:", error);
-      
-      // Show error toast but DON'T clear input - let user retry
-      toast({
-        title: "خطأ",
-        description: errorText,
-        variant: "destructive",
-      });
+      toast({ title: "خطأ", description: errorText, variant: "destructive" });
     },
   });
 
   const handleSend = () => {
-    if (input.trim() && !chatMutation.isPending && serviceAvailable) {
-      // Add user message immediately to the chat
-      const userMessage: ChatMessage = {
-        role: "user",
-        content: input,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, userMessage]);
-      // Clear input immediately
-      setInput("");
-      // Then send to server
-      chatMutation.mutate(input);
-    }
+    if (!input.trim() || chatMutation.isPending || !serviceAvailable) return;
+    const userMessage: ChatMessage = { role: "user", content: input.trim(), timestamp: Date.now() };
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    chatMutation.mutate(userMessage.content);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (serviceAvailable && input.trim() && !chatMutation.isPending) {
-        handleSend();
-      }
+      handleSend();
     }
   };
 
   useEffect(() => {
-    // Delay scroll slightly to ensure DOM has updated
     const timer = setTimeout(() => {
       if (scrollRef.current) {
-        scrollRef.current.scrollTo({
-          top: scrollRef.current.scrollHeight,
-          behavior: 'smooth',
-        });
+        scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
       }
     }, 100);
     return () => clearTimeout(timer);
   }, [messages]);
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row bg-background">
-      {/* Sidebar */}
-      <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-l border-border bg-card p-4 lg:p-6 space-y-6 max-h-[40vh] lg:max-h-screen overflow-y-auto">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Heart className="w-5 h-5 text-primary" />
+    <div className="fixed inset-0 bg-background" dir="rtl">
+      <div className="flex h-full flex-col lg:flex-row-reverse">
+        <aside className="w-full max-h-[35vh] flex-shrink-0 overflow-y-auto border-b border-border bg-card/90 p-4 lg:h-full lg:w-80 lg:border-b-0 lg:border-l">
+          <div className="space-y-4">
+            <div className={cn(
+              "flex items-center gap-3 rounded-2xl p-3",
+              theme.colors.badge,
+              "border"
+            )}>
+              <div className={cn(
+                "rounded-xl p-2 text-primary border",
+                theme.colors.icon
+              )}>
+                <TherapistIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold">{theme.title}</h2>
+                <p className="text-xs text-muted-foreground">{theme.description}</p>
+              </div>
             </div>
-            <h2 className="text-lg font-semibold text-card-foreground">جلستك الخاصة</h2>
+
+            <p className="rounded-2xl p-3 text-xs leading-relaxed text-black bg-gray-100">
+           محادثة آمنة ومخصصة لك، لن يتم حفظ أي معلومات
+           </p>
+
+            <Separator className="hidden lg:block" />
+
+            <Card className="hidden lg:block rounded-2xl border border-gray-300 bg-gray-100 p-4 text-black">
+            <p className="text-xs leading-relaxed">
+         <strong className="block mb-2">تنبيه مهم:</strong>
+           هذه المنصة لا تغني عن استشارة الطبيب النفسي المختص أو الشيخ المؤهل عند الحاجة. في الأزمات الشديدة يرجى طلب المساعدة الفورية.
+           </p>
+</Card>
           </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            محادثة آمنة ومخصصة لك، لن يتم حفظ أي معلومات
-          </p>
-        </div>
+        </aside>
 
-        <Separator />
-
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <BookOpen className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <h3 className="text-sm font-medium text-card-foreground">التوجيه الشرعي</h3>
-              <p className="text-xs text-muted-foreground">
-                جميع الإرشادات من القرآن والسنة
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <h3 className="text-sm font-medium text-card-foreground">دعم نفسي</h3>
-              <p className="text-xs text-muted-foreground">
-                إرشادات نفسية مبنية على القيم الإسلامية
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator />
-
-        <Card className="p-4 bg-accent/50 border-accent-border">
-          <p className="text-xs text-accent-foreground leading-relaxed">
-            <strong className="block mb-2">تنبيه مهم:</strong>
-            هذه المنصة لا تغني عن استشارة الطبيب النفسي المختص أو الشيخ المؤهل عند الحاجة. 
-            في حالات الأزمات النفسية الشديدة، يرجى طلب المساعدة الفورية من المختصين.
-          </p>
-        </Card>
-      </aside>
-
-      {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col min-h-[60vh] lg:min-h-screen">
-        <div className="flex-1 overflow-y-auto p-6" ref={scrollRef as any}>
-          <div className="max-w-4xl mx-auto space-y-6">
-            {messages.map((message, index) => (
-              <MessageBubble key={index} message={message} />
-            ))}
-            {chatMutation.isPending && (
+        <main className="flex-1 min-h-0 flex flex-col bg-gradient-to-b from-background to-accent/10">
+          <header className="border-b border-border bg-card/80 backdrop-blur-sm">
+            <div className="mx-auto flex max-w-4xl flex-row-reverse items-center justify-between gap-4 p-4">
+              {onEndSession && (
+                <Button variant="outline" size="sm" onClick={onEndSession} className="gap-2">
+                  <LogOut className="w-4 h-4" />
+                  إنهاء الجلسة
+                </Button>
+              )}
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Heart className="w-4 h-4 text-primary" />
+                <div className={cn(
+                  "rounded-xl p-2 text-primary border",
+                  theme.colors.icon
+                )}>
+                  <TherapistIcon className="w-5 h-5" />
                 </div>
-                <div className="flex items-center gap-2 bg-card p-4 rounded-2xl">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">جاري الكتابة...</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">{theme.title}</h3>
+                  <p className="text-xs text-muted-foreground">{theme.description}</p>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          </header>
 
-        {/* Input Area */}
-        <div className="border-t border-border bg-card p-4 lg:p-6 mt-auto">
-          <div className="max-w-4xl mx-auto">
-            {!serviceAvailable && (
-              <Card className="mb-4 p-4 bg-destructive/10 border-destructive/50">
-                <p className="text-sm text-destructive-foreground text-center">
-                  <strong>الخدمة غير متاحة حالياً</strong>
-                  <br />
-                  مفتاح الـ API للذكاء الاصطناعي غير مكوّن. يرجى التواصل مع مدير الموقع لتفعيل الخدمة.
-                </p>
-              </Card>
-            )}
-            <div className="flex gap-3 items-end">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={serviceAvailable ? "اكتب رسالتك هنا..." : "الخدمة غير متاحة حالياً"}
-                className="resize-none min-h-12 max-h-32"
-                disabled={chatMutation.isPending || !serviceAvailable}
-                data-testid="input-chat-message"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || chatMutation.isPending || !serviceAvailable}
-                size="icon"
-                className="flex-shrink-0"
-                data-testid="button-send-message"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6" ref={scrollRef}>
+            <div className="mx-auto flex max-w-4xl flex-col gap-4 lg:gap-6">
+              {messages.map((message) => (
+                <MessageBubble key={message.timestamp} message={message} theme={theme} />
+              ))}
+
+              {chatMutation.isPending && (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground" dir="ltr">
+                  <div className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-full p-2 text-primary border",
+                    theme.colors.icon
+                  )}>
+                    <TherapistIcon className="w-4 h-4" />
+                  </div>
+                  <div className="rounded-2xl border border-border bg-card px-4 py-2 shadow-sm text-right" dir="rtl">
+                    <Loader2 className="ml-2 inline-block h-4 w-4 animate-spin text-primary" />
+                    جاري الكتابة...
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </main>
+
+          <div className="safe-area-inset-bottom border-t border-border bg-card/95 p-3 lg:p-4">
+            <div className="mx-auto max-w-4xl space-y-3">
+              {!serviceAvailable && (
+                <Card className="border-destructive/50 bg-destructive/10 p-3 text-center text-sm text-destructive-foreground">
+                  الخدمة غير متاحة حالياً. يرجى تفعيل مفتاح GEMINI_API_KEY.
+                </Card>
+              )}
+              <div className="flex flex-row-reverse items-end gap-2">
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || chatMutation.isPending || !serviceAvailable}
+                  size="icon"
+                  className="h-12 w-12 shadow-md hover:shadow-lg transition"
+                  data-testid="button-send-message"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={serviceAvailable ? "اكتب رسالتك هنا..." : "الخدمة غير متاحة حالياً"}
+                  className="min-h-12 max-h-32 flex-1 resize-none text-base"
+                  disabled={chatMutation.isPending || !serviceAvailable}
+                  data-testid="input-chat-message"
+                  dir="rtl"
+                />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({ message, theme }: { message: ChatMessage; theme: TherapistTheme }) {
   const isUser = message.role === "user";
-  const isQuranVerse = message.content && (message.content.includes("﴿") || message.content.includes("﴾"));
+  const isVerse = message.content.includes("﴿") || message.content.includes("﴾");
 
   if (isUser) {
     return (
-      <div className="flex justify-start message-animate" data-testid={`message-user-${message.timestamp}`}>
-        <div className="bg-primary text-primary-foreground p-4 rounded-2xl rounded-bl-sm max-w-2xl">
-          <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+      <div className="flex w-full justify-end" dir="rtl">
+        <div className={cn(
+          "ml-auto max-w-[80%] rounded-2xl px-4 py-3 text-base leading-relaxed shadow-sm",
+          theme.colors.assistantBubble
+        )}>
+          <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex gap-3 items-start justify-end message-animate" data-testid={`message-assistant-${message.timestamp}`}>
-      <div className="flex-1 space-y-3 max-w-2xl">
-        {isQuranVerse ? (
-          <Card className="p-6 bg-accent/30 border-l-4 border-primary ml-auto">
-            <p className="text-lg md:text-xl leading-loose font-serif text-foreground whitespace-pre-wrap">
-              {message.content}
-            </p>
-          </Card>
+    <div className="flex w-full items-start gap-3" dir="ltr">
+      <div className={cn(
+        "flex h-9 w-9 items-center justify-center rounded-full p-2 border",
+        theme.colors.icon
+      )}>
+        <Heart className="h-4 w-4" />
+      </div>
+      <div className="mr-auto max-w-[80%] space-y-3 text-right" dir="rtl">
+        {isVerse ? (
+          <div className={cn(
+            "rounded-2xl p-3 text-sm leading-relaxed shadow-sm bg-gray-100 text-black border border-gray-300"
+            )}>
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            </div>
         ) : (
-          <div className="bg-card border border-card-border p-4 rounded-2xl rounded-tr-sm">
-            <p className="text-base leading-relaxed whitespace-pre-wrap text-card-foreground">
-              {message.content}
-            </p>
+          /* تم إزالة theme.colors.assistantBubble وتعويضها بالفئات الثابتة */
+          <div className={cn(
+            "rounded-2xl p-3 text-sm leading-relaxed shadow-sm bg-gray-100 text-black border border-gray-300"
+          )}>
+            <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
         )}
-      </div>
-      <div className="p-2 rounded-full bg-primary/10 flex-shrink-0">
-        <Heart className="w-4 h-4 text-primary" />
       </div>
     </div>
   );

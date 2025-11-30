@@ -12,6 +12,15 @@ export const questionnaireResponseSchema = z.object({
 
 export type QuestionnaireResponse = z.infer<typeof questionnaireResponseSchema>;
 
+// Therapist Type Schema
+export const therapistTypeSchema = z.enum([
+  "psychological", // معالج نفسي
+  "family",        // معالج أسري
+  "quranic",       // معالج بالقرآن
+]);
+
+export type TherapistType = z.infer<typeof therapistTypeSchema>;
+
 // Chat Message Schema
 export const chatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -25,6 +34,7 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export const chatRequestSchema = z.object({
   messages: z.array(chatMessageSchema),
   questionnaireData: questionnaireResponseSchema,
+  therapistType: therapistTypeSchema, // إضافة نوع المعالج
 });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

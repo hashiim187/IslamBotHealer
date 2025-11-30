@@ -112,8 +112,8 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
   const canProceed = currentQuestion.id === "specificConcerns" || answers[currentQuestion.id];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
-      <div className="w-full max-w-2xl space-y-8">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-6 bg-background">
+      <div className="w-full max-w-2xl space-y-6 md:space-y-8">
         <div className="space-y-3">
           <div className="flex justify-between items-center text-sm text-muted-foreground flex-row-reverse">
             <span>السؤال {currentStep + 1} من {questions.length}</span>
@@ -122,9 +122,9 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
           <Progress value={progress} className="h-2" data-testid="progress-questionnaire" />
         </div>
 
-        <Card className="p-8 space-y-8">
+        <Card className="p-6 md:p-8 space-y-6 md:space-y-8 shadow-lg border-2">
           <div className="space-y-6">
-            <h2 className="text-2xl md:text-3xl font-medium text-foreground leading-relaxed text-right">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-medium text-foreground leading-relaxed text-right">
               {currentQuestion.question}
             </h2>
 
@@ -132,13 +132,25 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
               <RadioGroup
                 value={answers[currentQuestion.id] || ""}
                 onValueChange={handleAnswer}
-                className="space-y-4"
+                className="space-y-3"
               >
                 {currentQuestion.options.map((option) => (
-                  <div key={option.value} className="flex items-center justify-end gap-3">
+                  <div
+                    key={option.value}
+                    className={`flex items-center justify-end gap-3 p-3 md:p-4 rounded-lg border-2 transition-all cursor-pointer hover:bg-accent/50 ${
+                      answers[currentQuestion.id] === option.value
+                        ? "bg-primary/10 border-primary shadow-sm"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => handleAnswer(option.value)}
+                  >
                     <Label
                       htmlFor={option.value}
-                      className="text-lg cursor-pointer flex-1 py-3 text-right"
+                      className={`text-base md:text-lg cursor-pointer flex-1 text-right font-medium ${
+                        answers[currentQuestion.id] === option.value
+                          ? "text-foreground"
+                          : "text-foreground/90"
+                      }`}
                     >
                       {option.label}
                     </Label>
@@ -146,6 +158,7 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
                       value={option.value}
                       id={option.value}
                       data-testid={`radio-${currentQuestion.id}-${option.value}`}
+                      className="flex-shrink-0"
                     />
                   </div>
                 ))}
@@ -157,21 +170,20 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
                 value={answers[currentQuestion.id] || ""}
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="اكتب هنا..."
-                className="min-h-32 text-lg resize-none text-right"
+                className="min-h-32 text-base md:text-lg resize-none text-right border-2"
                 dir="rtl"
                 data-testid="textarea-specificConcerns"
               />
             )}
           </div>
 
-          <div className="flex justify-between gap-4">
+          <div className="flex flex-row-reverse justify-between gap-4 pt-4 border-t">
             <Button
               onClick={handleNext}
               disabled={!canProceed}
-              className="gap-2 flex items-center"
+              className="min-h-11 px-8"
               data-testid="button-next"
             >
-              <ChevronLeft className="w-4 h-4 ml-2" />
               {currentStep === questions.length - 1 ? "إنهاء" : "التالي"}
             </Button>
 
@@ -179,11 +191,10 @@ export default function Questionnaire({ onComplete }: QuestionnaireProps) {
               variant="outline"
               onClick={handlePrevious}
               disabled={currentStep === 0}
-              className="gap-2 flex items-center"
+              className="min-h-11 px-8"
               data-testid="button-previous"
             >
               السابق
-              <ChevronRight className="w-4 h-4 mr-2" />
             </Button>
           </div>
         </Card>

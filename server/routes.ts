@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { z } from "zod";
 import { chatRequestSchema } from "@shared/schema";
-import { getChatResponse } from "./gemini";
+import { getChatResponse, getIkhtiyarahVerse } from "./gemini";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
@@ -41,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { messages, questionnaireData } = validationResult.data;
+      const { messages, questionnaireData, therapistType } = validationResult.data;
 
       // Get AI response (or fallback)
       if (!process.env.GEMINI_API_KEY && useFallback) {
@@ -53,7 +53,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ message: fallbackReply });
       }
 
-      const aiResponse = await getChatResponse(messages, questionnaireData);
+      const aiResponse = await getChatResponse(messages, questionnaireData, therapistType);
 
       res.json({ message: aiResponse });
     } catch (error) {
@@ -61,6 +61,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         error: "حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.",
         userMessage: "عذراً، حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقاً.",
+      });
+    }
+  });
+
+  // Ikhtiyarah endpoint - get Quran verse for feeling
+  app.post("/api/ikhtiyarah", async (req, res) => {
+    try {
+      const useFallback = process.env.LOCAL_FALLBACK === "true";
+      if (!process.env.GEMINI_API_KEY && !useFallback) {
+        return res.status(503).json({
+          error: "الخدمة غير متاحة حالياً",
+          message: "مفتاح الـ API غير مكوّن.",
+        });
+      }
+
+      const { feeling } = req.body;
+      
+      if (!feeling || typeof feeling !== "string" || feeling.trim().length === 0) {
+        return res.status(400).json({
+          error: "يرجى إدخال الشعور",
+        });
+      }
+
+      if (!process.env.GEMINI_API_KEY && useFallback) {
+        return res.json({
+          verse: "﴿ وَمَن يَتَّقِ اللَّهَ يَجْعَل لَّهُ مَخْرَجًا وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ ۚ وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ ۚ إِنَّ اللَّهَ بَالِغُ أَمْرِهِ ۚ قَدْ جَعَلَ اللَّهُ لِكُلِّ شَيْءٍ قَدْرًا ﴾ [الطلاق: 2-3]",
+        });
+      }
+
+      const aiResponse = await getIkhtiyarahVerse(feeling.trim());
+      res.json({ verse: aiResponse });
+    } catch (error) {
+      console.error("Ikhtiyarah API Error:", error);
+      res.status(500).json({
+        error: "حدث خطأ في الخادم. يرجى المحاولة مرة أخرى.",
       });
     }
   });
